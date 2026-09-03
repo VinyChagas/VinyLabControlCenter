@@ -3,16 +3,26 @@ const REQUEST_TIMEOUT_MS = 15000;
 
 export class ApiError extends Error {
   readonly status?: number;
+  readonly code?: string;
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
 function getBaseUrl(): string {
   return import.meta.env.VITE_API_URL ?? DEFAULT_BASE_URL;
+}
+
+type UnauthorizedHandler = () => void;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+export function onUnauthorized(handler: UnauthorizedHandler | null) {
+  unauthorizedHandler = handler;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -22,6 +32,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     const response = await fetch(`${getBaseUrl()}${path}`, {
       ...init,
+      credentials: 'include',
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
@@ -30,8 +41,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       },
     });
 
+    if (response.status === 401) {
+      if (!path.startsWith('/auth/login')) {
+        unauthorizedHandler?.();
+      }
+      let message = 'Não autenticado';
+      try {
+        const body = (await response.json()) as { error?: { message?: string } };
+        if (body.error?.message) message = body.error.message;
+      } catch {
+        // ignore
+      }
+      throw new ApiError(message, 401, 'UNAUTHORIZED');
+    }
+
     if (!response.ok) {
-      throw new ApiError(`Falha na requisição (${response.status})`, response.status);
+      let message = `Falha na requisição (${response.status})`;
+      let code: string | undefined;
+      try {
+        const body = (await response.json()) as { error?: { message?: string; code?: string } };
+        if (body.error?.message) message = body.error.message;
+        code = body.error?.code;
+      } catch {
+        // ignore body parse errors
+      }
+      throw new ApiError(message, response.status, code);
     }
 
     if (response.status === 204) {

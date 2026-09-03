@@ -1,4 +1,5 @@
 export const ROUTES = {
+  login: '/login',
   dashboard: '/',
   services: '/services',
   projects: '/projects',
@@ -7,6 +8,13 @@ export const ROUTES = {
   backups: '/backups',
   settings: '/settings',
 } as const;
+
+export const PLATFORM_ROLE_LABEL: Record<string, string> = {
+  owner: 'Owner',
+  admin: 'Admin',
+  operator: 'Operador',
+  viewer: 'Viewer',
+};
 
 export interface NavItem {
   to: string;
@@ -32,7 +40,7 @@ export interface PageMeta {
 
 export const PAGE_META: Record<string, PageMeta> = {
   [ROUTES.dashboard]: {
-    greeting: 'Olá, Vini! 👋',
+    greeting: 'Bem-vindo',
     title: 'Control Center',
     subtitle: 'Visão geral da sua VPS em tempo real.',
   },

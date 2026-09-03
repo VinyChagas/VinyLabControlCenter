@@ -3,14 +3,16 @@ import {
   FolderKanban,
   LayoutDashboard,
   Layers,
+  LogOut,
   ScrollText,
   Server,
   Settings,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '@/auth/useAuth';
 import { SystemHealth } from '@/components/dashboard/SystemHealth';
 import { LogoMark } from '@/components/layout/LogoMark';
-import { NAV_ITEMS, type NavItem } from '@/constants/navigation';
+import { NAV_ITEMS, PLATFORM_ROLE_LABEL, type NavItem } from '@/constants/navigation';
 import { useLayoutContext } from '@/hooks/useLayoutContext';
 import { cn } from '@/utils/format';
 import type { LucideIcon } from 'lucide-react';
@@ -26,7 +28,8 @@ const NAV_ICONS: Record<NavItem['icon'], LucideIcon> = {
 };
 
 export function Sidebar() {
-  const { sidebarOpen, setSidebarOpen, user, health } = useLayoutContext();
+  const { sidebarOpen, setSidebarOpen, health } = useLayoutContext();
+  const { user, logout } = useAuth();
 
   return (
     <>
@@ -89,18 +92,32 @@ export function Sidebar() {
         </nav>
 
         <div className="mt-auto flex flex-col gap-3">
-          <div className="flex items-center gap-3 rounded-xl border border-line bg-card px-3 py-3 transition-colors duration-200 hover:border-line/80 animate-fade-in">
-            <div
-              className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-accent/15 text-[11px] font-semibold text-blue-accent"
-              aria-hidden
+          <div className="rounded-xl border border-line bg-card px-3 py-3 transition-colors duration-200 hover:border-line/80 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div
+                className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-accent/15 text-[11px] font-semibold text-blue-accent"
+                aria-hidden
+              >
+                {user?.initials ?? '—'}
+                <span className="absolute right-0 bottom-0 size-2 rounded-full border border-sidebar bg-blue-accent animate-glow-pulse" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-medium text-text">{user?.name ?? '—'}</p>
+                <p className="text-[11px] text-blue-accent">
+                  {user ? (PLATFORM_ROLE_LABEL[user.platformRole] ?? user.platformRole) : '—'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                void logout();
+              }}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] text-muted transition hover:border-orange-accent/40 hover:bg-orange-accent/10 hover:text-orange-accent"
             >
-              {user.initials}
-              <span className="absolute right-0 bottom-0 size-2 rounded-full border border-sidebar bg-blue-accent animate-glow-pulse" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-[13px] font-medium text-text">{user.name}</p>
-              <p className="text-[11px] text-blue-accent">{user.role}</p>
-            </div>
+              <LogOut className="size-3.5" strokeWidth={1.75} />
+              Sair
+            </button>
           </div>
 
           <SystemHealth health={health} />

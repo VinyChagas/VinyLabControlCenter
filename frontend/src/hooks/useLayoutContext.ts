@@ -1,10 +1,9 @@
 import { createContext, useContext } from 'react';
-import type { CurrentUser, SystemHealthData } from '@/types';
+import type { SystemHealthData } from '@/types';
 
 export interface LayoutContextValue {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  user: CurrentUser;
   health: SystemHealthData;
   notificationCount: number;
 }

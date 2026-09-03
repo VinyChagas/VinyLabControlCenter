@@ -5,5 +5,13 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    pool: 'forks',
+    fileParallelism: false,
+    poolOptions: {
+      forks: {
+        singleFork: false,
+        isolate: true,
+      },
+    },
   },
 });

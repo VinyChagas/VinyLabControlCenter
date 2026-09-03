@@ -2,11 +2,12 @@
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILE="${ROOT_DIR}/docker-compose.hml.yml"
-ENV_FILE="${ROOT_DIR}/.env.hml"
+COMPOSE_FILE="${ROOT_DIR}/docker-compose.yml"
+ENV_FILE="${ROOT_DIR}/.env"
 
 log() { printf '==> %s\n' "$*"; }
 err() { printf 'ERROR: %s\n' "$*" >&2; }
+warn() { printf 'WARNING: %s\n' "$*" >&2; }
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -16,19 +17,14 @@ require_cmd() {
 }
 
 on_error() {
-  err "Falha no deploy HML (linha ${1})."
+  err "Falha no deploy (linha ${1})."
   exit 1
 }
 trap 'on_error $LINENO' ERR
 
-run_migrations_if_any() {
-  # Placeholder para migrations futuras (Prisma/Knex/etc.).
-  # Hoje o projeto ainda NÃO possui ferramenta de migration versionada.
-  # Quando existir, implemente aqui — por exemplo:
-  #   "${COMPOSE[@]}" -f "${COMPOSE_FILE}" exec -T backend npm run migrate
-  #
-  # NÃO execute comandos inventados. Não rode resets destrutivos.
-  log "Migrations: nenhuma ferramenta configurada ainda (skip)."
+run_migrations() {
+  log "Executando migrations..."
+  "${COMPOSE[@]}" -f "${COMPOSE_FILE}" exec -T backend node dist/db/migrate.js
 }
 
 cd "${ROOT_DIR}"
@@ -56,6 +52,12 @@ if [[ ! -d "${ROOT_DIR}/.git" ]]; then
   exit 1
 fi
 
+for name in vinylab-control-backend-hml vinylab-control-frontend-hml; do
+  if docker inspect "${name}" >/dev/null 2>&1; then
+    warn "Container legado '${name}' ainda existe — pode conflitar com portas/nomes."
+  fi
+done
+
 log "Atualizando código (git pull)..."
 git pull --ff-only
 
@@ -65,7 +67,7 @@ log "Build das imagens..."
 log "Recriando containers..."
 "${COMPOSE[@]}" -f "${COMPOSE_FILE}" up -d
 
-run_migrations_if_any
+run_migrations
 
 log "Verificando healthcheck..."
 ready=0
@@ -90,4 +92,4 @@ fi
 "${COMPOSE[@]}" -f "${COMPOSE_FILE}" exec -T backend \
   node -e "fetch('http://127.0.0.1:3001/health').then(async (r)=>{console.log(await r.text()); process.exit(r.ok?0:1)}).catch((e)=>{console.error(e); process.exit(1)})"
 
-log "Deploy HML concluído com sucesso."
+log "Deploy concluído."

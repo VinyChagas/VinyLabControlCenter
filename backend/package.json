@@ -6,15 +6,19 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "migrate": "tsx src/db/migrate.ts",
     "lint": "eslint .",
     "test": "vitest run"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
     "@fastify/cors": "^10.0.1",
     "@fastify/helmet": "^13.0.0",
     "@fastify/rate-limit": "^10.2.1",
+    "argon2": "^0.45.1",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.1",
+    "fastify-plugin": "^6.0.0",
     "pg": "^8.23.0",
     "pino": "^9.6.0",
     "zod": "^3.24.2"

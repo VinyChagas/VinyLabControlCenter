@@ -1,46 +1,56 @@
-# VinyLabControlCenter
+# VinyLab Control Center
 
 Painel de controle da infraestrutura VinyLab (frontend React + backend Fastify).
 
 ## Arquitetura
 
 ```
-frontend/          React + TypeScript + Vite + Tailwind
-backend/           Fastify + TypeScript + AES-256-GCM secrets
-docker-compose.dev.yml   PostgreSQL 18 local (somente 127.0.0.1)
-docker-compose.hml.yml   Frontend + backend na VPS (sem criar PostgreSQL)
-scripts/           install-hml.sh / deploy-hml.sh
+frontend/                 React + TypeScript + Vite + Tailwind
+backend/                  Fastify + TypeScript + AES-256-GCM secrets + auth
+backend/migrations/       SQL versionado (schema_migrations)
+docker-compose.dev.yml    PostgreSQL 18 local (somente 127.0.0.1)
+docker-compose.yml        Frontend + backend na VPS (sem criar PostgreSQL)
+scripts/                  install.sh / deploy.sh
+docs/caddy-control.snippet  Bloco Caddy sugerido (não aplicado automaticamente)
 ```
 
-Fluxo de secrets e teste de banco:
+Fluxo público:
 
 ```
-Frontend → Backend (/api/secrets/test) → PostgreSQL
+Browser → Caddy (HTTPS control.vinichagas.cloud)
+       → vinylab-control-frontend (nginx)
+            /        → SPA
+            /api/*   → vinylab-control-backend:3001
+       → vinylab-postgres (rede vinylab_internal)
 ```
 
 O frontend **nunca** conecta diretamente no PostgreSQL.
 
+Autenticação da SPA: cookie `HttpOnly` `vl_session` (sessão opaca). JWT/JWKS/OIDC ficam para etapas futuras (Hermes).
+
 ### Ambientes
 
-| | DEV (Mac) | HML (VPS Ubuntu) |
+| | DEV (local) | VPS |
 |---|---|---|
-| App | `npm run dev` local | Docker Compose HML |
-| PostgreSQL | container `vinylab-control-postgres-dev` | container existente `vinylab-postgres` |
-| Host DB | `localhost:5432` | `vinylab-postgres:5432` (rede `vinylab_internal`) |
-| Porta 5432 | só `127.0.0.1` | **não** publicada na internet |
+| App | `npm run dev` | Docker Compose (`docker-compose.yml`) |
+| PostgreSQL | `vinylab-control-postgres-dev` | `vinylab-postgres` (existente) |
+| Host DB | `localhost:5432` | `vinylab-postgres:5432` (`vinylab_internal`) |
+| Porta 5432 | só `127.0.0.1` | **não** publicada |
+| Compose | `docker-compose.dev.yml` | `docker-compose.yml` |
+| Env | `backend/.env` + `.env.dev` | `.env` (raiz) |
 
-A diferença entre ambientes é **apenas** por variáveis de ambiente / compose.
+A VPS hoje exerce o papel de ambiente de homologação operacional, mas os recursos técnicos **não** usam sufixos `hml` / `homologation`.
 
 ## Pré-requisitos
 
 - Node.js 22+
 - npm
 - Docker + Docker Compose
-- (HML) network `vinylab_internal` e container `vinylab-postgres` já existentes
+- (VPS) networks `vinylab_internal` + `vinylab_proxy` e container `vinylab-postgres`
 
 ## Configuração do .env
 
-### Backend (`backend/.env`)
+### Backend (`backend/.env`) — DEV
 
 ```bash
 cd backend
@@ -50,20 +60,17 @@ cp .env.example .env
 Variáveis:
 
 - `NODE_ENV` — `development` | `production` | `test`
-- `APP_ENV` — `development` | `homologation` | `production` | `test`
-- `PORT` — porta HTTP (default `3001`)
-- `FRONTEND_URL` — origem CORS em produção
-- `DATABASE_URL` — connection string do PostgreSQL do **próprio backend** (healthcheck)
-- `SECRET_MASTER_KEY` — chave mestra AES-256-GCM (≥ 32 chars)
+- `APP_ENV` — `development` | `vps` | `production` | `test`
+- `PORT` — default `3001`
+- `FRONTEND_URL` — origem CORS/CSRF (`http://localhost:5173` em DEV)
+- `DATABASE_URL` — PostgreSQL do backend
+- `SECRET_MASTER_KEY` — AES-256-GCM (≥ 32 chars)
+- `SESSION_TTL_HOURS` — validade da sessão (ex.: `72`)
+- `BOOTSTRAP_OWNER_EMAIL` / `BOOTSTRAP_OWNER_PASSWORD` / `BOOTSTRAP_OWNER_NAME` — cria OWNER se ainda não existir
 
 ### Frontend (`frontend/.env` opcional)
 
-```bash
-cd frontend
-cp .env.example .env
-```
-
-- `VITE_API_URL` — base da API (default `/api`, com proxy Vite em DEV)
+- `VITE_API_URL` — default `/api` (proxy Vite em DEV; nginx na VPS)
 
 ### Docker DEV (raiz)
 
@@ -72,14 +79,15 @@ cp .env.dev.example .env.dev
 # preencha POSTGRES_PASSWORD
 ```
 
-### Homologação (raiz da VPS)
+### VPS (raiz)
 
 ```bash
-cp .env.hml.example .env.hml
-# preencha DATABASE_URL, SECRET_MASTER_KEY, FRONTEND_URL, etc.
+cp .env.example .env
+# FRONTEND_URL=https://control.vinichagas.cloud
+# preencha DATABASE_URL, SECRET_MASTER_KEY, BOOTSTRAP_OWNER_*, etc.
 ```
 
-**Nunca** versione `.env`, `.env.dev`, `.env.hml` ou `backend/data/secrets.enc.json`.
+**Nunca** versione `.env`, `.env.dev`, `.env.hml` legado ou `backend/data/secrets.enc.json`.
 
 ## Desenvolvimento local
 
@@ -88,169 +96,146 @@ cp .env.hml.example .env.hml
 ```bash
 cp .env.dev.example .env.dev
 docker compose -f docker-compose.dev.yml up -d
-docker compose -f docker-compose.dev.yml ps
-docker compose -f docker-compose.dev.yml logs -f postgres
 ```
 
-Connection string local (conceitual):
+Connection string local:
 
 ```text
 postgresql://vinylab_control:<DEV_PASSWORD>@localhost:5432/vinylab_control_center
 ```
 
-Use o mesmo valor em `backend/.env` → `DATABASE_URL`.
-
-Entrar no PostgreSQL DEV:
+Migrations + app:
 
 ```bash
-docker exec -it vinylab-control-postgres-dev \
-  psql -U vinylab_control -d vinylab_control_center
-```
-
-Parar DEV:
-
-```bash
-docker compose -f docker-compose.dev.yml down
-```
-
-(`down` sem `-v` preserva o volume `vinylab_control_dev_data`.)
-
-### Subindo DEV (app)
-
-```bash
-# terminal 1 — backend
 cd backend
-cp .env.example .env   # se ainda não existir
+cp .env.example .env   # ajuste DATABASE_URL e BOOTSTRAP_OWNER_*
 npm install
+npm run migrate
 npm run dev
 
-# terminal 2 — frontend
+# outro terminal
 cd frontend
 npm install
 npm run dev
 ```
 
 - Frontend: http://localhost:5173
-- Backend: http://localhost:3001
-- Health: http://localhost:3001/health e http://localhost:3001/api/health
+- Login: http://localhost:5173/login
+- Backend health: http://localhost:3001/health
 
-## Homologação
+## Autenticação
 
-### Arquitetura Docker da VPS
+### Públicos
 
-- Rede externa existente: `vinylab_internal`
-- PostgreSQL existente: `vinylab-postgres` (não recriado por este projeto)
-- Este compose sobe apenas:
-  - `vinylab-control-backend-hml` → `127.0.0.1:3001`
-  - `vinylab-control-frontend-hml` → `127.0.0.1:8080`
-- Caddy (futuro) fará HTTPS na frente desses serviços
+- `GET /health`
+- `POST /api/auth/login`
 
-`DATABASE_URL` em HML (conceitual):
+### Protegidos (sessão obrigatória)
 
-```text
-postgresql://vinylab_control:<HML_PASSWORD>@vinylab-postgres:5432/vinylab_control_center
-```
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- demais rotas `/api/*`
 
-### Primeiro deploy
+Secrets e updates sensíveis de settings: apenas `owner` ou `admin`.
 
-Na VPS, no diretório do clone:
+Cookie: `vl_session` — `HttpOnly`, `SameSite=Lax`, `Secure` quando `FRONTEND_URL` é HTTPS / `APP_ENV=vps|production`.
+
+## Homologação na VPS
+
+### Containers esperados
+
+- `vinylab-control-backend`
+- `vinylab-control-frontend`
+- `vinylab-postgres` (pré-existente)
+
+### Redes
+
+- Backend: `vinylab_internal`
+- Frontend: `vinylab_internal` + `vinylab_proxy`
+- Caddy: `vinylab_proxy` (já existente)
+
+### Primeiro install
 
 ```bash
-cp .env.hml.example .env.hml
-# edite .env.hml com valores reais (não commitar)
+cp .env.example .env
+# edite .env
 
-chmod +x scripts/install-hml.sh scripts/deploy-hml.sh
-./scripts/install-hml.sh
+chmod +x scripts/install.sh scripts/deploy.sh
+./scripts/install.sh
 ```
 
-O script valida Docker, Compose, network, container Postgres, presença do `.env.hml`, faz build/up e checa health. **Não** cria nem sobrescreve secrets.
+O script valida Docker, networks, Postgres, `.env`, faz build/up, roda migrations e checa health.
+
+**Não** altera o Caddy automaticamente. Use o snippet em `docs/caddy-control.snippet`.
 
 ### Atualizações
 
 ```bash
-./scripts/deploy-hml.sh
+./scripts/deploy.sh
 ```
 
-Fluxo: `git pull` → build → `up -d` → placeholder de migrations → healthcheck.
+### Containers legados
 
-## Comandos operacionais
+Se ainda existirem `vinylab-control-*-hml`, pare/remova **manualmente** antes do novo up (conflito de portas 3001/8080):
+
+```bash
+docker stop vinylab-control-backend-hml vinylab-control-frontend-hml
+docker rm vinylab-control-backend-hml vinylab-control-frontend-hml
+```
+
+Volume legado `vinylab_control_hml_secrets`: o compose novo usa `vinylab_control_secrets`. Migre o conteúdo ou recadastre secrets.
+
+## Comandos
 
 ### DEV
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
 docker compose -f docker-compose.dev.yml down
-docker compose -f docker-compose.dev.yml logs -f
-docker compose -f docker-compose.dev.yml ps
-docker exec -it vinylab-control-postgres-dev psql -U vinylab_control -d vinylab_control_center
+cd backend && npm run migrate && npm run test && npm run build
+cd frontend && npm run build
 ```
 
-### HML
+### VPS
 
 ```bash
-docker compose -f docker-compose.hml.yml build
-docker compose -f docker-compose.hml.yml up -d
-docker compose -f docker-compose.hml.yml down          # NÃO use -v
-docker compose -f docker-compose.hml.yml restart
-docker compose -f docker-compose.hml.yml logs -f
-docker compose -f docker-compose.hml.yml ps
+docker compose -f docker-compose.yml build
+docker compose -f docker-compose.yml up -d
+docker compose -f docker-compose.yml exec -T backend node dist/db/migrate.js
 curl -s http://127.0.0.1:3001/health
 ```
 
-## Logs
-
-```bash
-# DEV postgres
-docker compose -f docker-compose.dev.yml logs -f postgres
-
-# HML
-docker compose -f docker-compose.hml.yml logs -f backend
-docker compose -f docker-compose.hml.yml logs -f frontend
-```
-
-O backend redige campos sensíveis nos logs (`secret`, `password`, `token`, `DATABASE_URL`, etc.).
-
 ## Healthcheck
-
-Resposta típica:
 
 ```json
 {
   "status": "ok",
   "database": "connected",
-  "environment": "homologation",
+  "environment": "vps",
   "timestamp": "...",
-  "uptime": 12.3
+  "uptime": 12.3,
+  "databaseLatencyMs": 2
 }
 ```
 
-- `database`: `connected` | `disconnected` | `not_configured`
-- Em HML/produção, ausência/falha de DB → HTTP 503
-- Endpoints: `GET /health` e `GET /api/health`
-
-## Troubleshooting
-
-| Problema | Verificação |
-|---|---|
-| Backend não sobe | `SECRET_MASTER_KEY` ≥ 32 chars no `.env` |
-| Health `disconnected` | `DATABASE_URL` e rede Docker; no HML o host deve ser `vinylab-postgres` |
-| CORS em produção | `FRONTEND_URL` deve ser a origem real do frontend |
-| Install HML falha na network | `docker network inspect vinylab_internal` |
-| Install HML falha no Postgres | `docker inspect vinylab-postgres` |
-| Teste de conexão no Settings | fluxo Frontend → Backend → Postgres; connection string não é logada |
+Em `vps`/`production`, DB ausente/falho → HTTP 503.
 
 ## Segurança
 
-- Secrets de providers ficam criptografados (AES-256-GCM) em `backend/data/secrets.enc.json` (gitignored)
-- APIs de secrets retornam apenas valores mascarados
-- Helmet, CORS, rate limit e body limit (100 KB) ativos
-- Stack traces não são expostos em produção
-- PostgreSQL DEV/HML não deve ser publicado em `0.0.0.0`
-- Não commitar: `.env*`, dumps, `*.pem`, `*.key`, `secrets.enc.json`
+- Sessões: apenas hash SHA-256 do token no banco
+- Senhas: Argon2id
+- CSRF básico: validação Origin/Referer em métodos mutáveis (token CSRF pode vir depois)
+- Secrets providers: AES-256-GCM em `backend/data/secrets.enc.json`
+- Logs: redaction de cookie, authorization, password, token, DATABASE_URL, etc.
+- Audit: `login_success`, `login_failed`, `logout` (sem senhas/tokens)
+
+## Testes frontend
+
+A stack frontend atual não inclui runner de testes (Vitest/Jest/Playwright). Pendência documentada: redirect sem auth, login, logout e estado autenticado.
 
 ## Scripts npm
 
-| Pasta | Dev | Lint | Test | Build |
-|---|---|---|---|---|
-| frontend | `npm run dev` | `npm run lint` | — | `npm run build` |
-| backend | `npm run dev` | `npm run lint` | `npm run test` | `npm run build` |
+| Pasta | Dev | Migrate | Lint | Test | Build |
+|---|---|---|---|---|---|
+| frontend | `npm run dev` | — | `npm run lint` | — | `npm run build` |
+| backend | `npm run dev` | `npm run migrate` | `npm run lint` | `npm run test` | `npm run build` |

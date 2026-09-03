@@ -1,9 +1,12 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AuthProvider } from '@/auth/AuthProvider';
+import { GuestRoute, ProtectedRoute } from '@/auth/ProtectedRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ROUTES } from '@/constants/navigation';
 import { BackupsPage } from '@/pages/Backups';
 import { DashboardPage } from '@/pages/Dashboard';
 import { EnvironmentsPage } from '@/pages/Environments';
+import { LoginPage } from '@/pages/Login';
 import { LogsPage } from '@/pages/Logs';
 import { ProjectsPage } from '@/pages/Projects';
 import { ServicesPage } from '@/pages/Services';
@@ -12,18 +15,26 @@ import { SettingsPage } from '@/pages/Settings';
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route path={ROUTES.dashboard} element={<DashboardPage />} />
-          <Route path={ROUTES.services} element={<ServicesPage />} />
-          <Route path={ROUTES.projects} element={<ProjectsPage />} />
-          <Route path={ROUTES.environments} element={<EnvironmentsPage />} />
-          <Route path={ROUTES.logs} element={<LogsPage />} />
-          <Route path={ROUTES.backups} element={<BackupsPage />} />
-          <Route path={ROUTES.settings} element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to={ROUTES.dashboard} replace />} />
-        </Route>
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route element={<GuestRoute />}>
+            <Route path={ROUTES.login} element={<LoginPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
+              <Route path={ROUTES.dashboard} element={<DashboardPage />} />
+              <Route path={ROUTES.services} element={<ServicesPage />} />
+              <Route path={ROUTES.projects} element={<ProjectsPage />} />
+              <Route path={ROUTES.environments} element={<EnvironmentsPage />} />
+              <Route path={ROUTES.logs} element={<LogsPage />} />
+              <Route path={ROUTES.backups} element={<BackupsPage />} />
+              <Route path={ROUTES.settings} element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to={ROUTES.dashboard} replace />} />
+            </Route>
+          </Route>
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

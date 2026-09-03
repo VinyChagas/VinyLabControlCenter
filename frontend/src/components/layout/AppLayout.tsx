@@ -9,14 +9,13 @@ import { useLayoutBootstrap } from '@/hooks/useLayoutBootstrap';
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, health, notificationCount, loading, error } = useLayoutBootstrap();
+  const { health, notificationCount, loading, error } = useLayoutBootstrap();
 
   return (
     <LayoutContext.Provider
       value={{
         sidebarOpen,
         setSidebarOpen,
-        user,
         health,
         notificationCount,
       }}

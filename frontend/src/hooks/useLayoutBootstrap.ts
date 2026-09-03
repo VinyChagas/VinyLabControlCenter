@@ -1,20 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getDashboard } from '@/api/dashboardApi';
-import type { CurrentUser, DashboardData, SystemHealthData } from '@/types';
+import type { DashboardData, SystemHealthData } from '@/types';
 
 interface LayoutBootstrap {
-  user: CurrentUser;
   health: SystemHealthData;
   notificationCount: number;
   loading: boolean;
   error: string | null;
 }
-
-const defaultUser: CurrentUser = {
-  name: 'Vini Chagas',
-  role: 'Administrador',
-  initials: 'VC',
-};
 
 const defaultHealth: SystemHealthData = {
   statusLabel: 'Carregando...',
@@ -26,7 +19,6 @@ const defaultHealth: SystemHealthData = {
 
 export function useLayoutBootstrap(): LayoutBootstrap {
   const [state, setState] = useState<LayoutBootstrap>({
-    user: defaultUser,
     health: defaultHealth,
     notificationCount: 0,
     loading: true,
@@ -39,7 +31,6 @@ export function useLayoutBootstrap(): LayoutBootstrap {
     void getDashboard()
       .then((data: DashboardData) => {
         setState({
-          user: data.user,
           health: data.health,
           notificationCount: data.notificationCount,
           loading: false,

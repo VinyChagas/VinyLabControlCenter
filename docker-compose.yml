@@ -1,25 +1,25 @@
-# Homologação (VPS Ubuntu)
-# NÃO sobe PostgreSQL — usa o container existente vinylab-postgres na rede vinylab_internal.
+# VPS — frontend + backend na rede existente.
+# NÃO sobe PostgreSQL — usa o container vinylab-postgres.
 
 services:
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: vinylab-control-backend:hml
-    container_name: vinylab-control-backend-hml
+    image: vinylab-control-backend:latest
+    container_name: vinylab-control-backend
     restart: unless-stopped
     env_file:
-      - path: .env.hml
+      - path: .env
         required: false
     environment:
       NODE_ENV: production
-      APP_ENV: homologation
+      APP_ENV: vps
     volumes:
-      - vinylab_control_hml_secrets:/app/data
+      - vinylab_control_secrets:/app/data
     networks:
       - vinylab_internal
-    # Apenas localhost — Caddy no host (ou na mesma rede) fará o HTTPS depois
+    # Apenas localhost — Caddy fará o HTTPS na frente do frontend
     ports:
       - "127.0.0.1:3001:3001"
     healthcheck:
@@ -41,14 +41,15 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: /api
-    image: vinylab-control-frontend:hml
-    container_name: vinylab-control-frontend-hml
+    image: vinylab-control-frontend:latest
+    container_name: vinylab-control-frontend
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
     networks:
       - vinylab_internal
+      - vinylab_proxy
     ports:
       - "127.0.0.1:8080:80"
     healthcheck:
@@ -61,6 +62,8 @@ services:
 networks:
   vinylab_internal:
     external: true
+  vinylab_proxy:
+    external: true
 
 volumes:
-  vinylab_control_hml_secrets:
+  vinylab_control_secrets:

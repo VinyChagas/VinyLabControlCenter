@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import cookie from '@fastify/cookie';
 import { ZodError } from 'zod';
 import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
@@ -17,7 +18,10 @@ import { integrationsRoutes } from './modules/integrations/integrations.routes.j
 import { costsRoutes } from './modules/costs/costs.routes.js';
 import { settingsRoutes } from './modules/settings/settings.routes.js';
 import { secretsRoutes } from './security/secrets.routes.js';
+import { authRoutes } from './modules/auth/auth.routes.js';
 import { HealthController } from './modules/health/health.controller.js';
+import { authPlugin } from './plugins/auth.plugin.js';
+import { csrfPlugin } from './plugins/csrf.plugin.js';
 
 const BODY_LIMIT_BYTES = 100 * 1024;
 
@@ -62,6 +66,10 @@ export async function buildApp() {
     max: 100,
     timeWindow: '1 minute',
   });
+  await app.register(cookie);
+
+  await app.register(csrfPlugin);
+  await app.register(authPlugin);
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) {
@@ -94,10 +102,11 @@ export async function buildApp() {
     return reply.status(500).send(body);
   });
 
-  // Health sem prefixo — útil para Docker/Caddy healthchecks
+  // Health sem prefixo — útil para Docker/Caddy healthchecks (público)
   const healthController = new HealthController();
   app.get('/health', healthController.check.bind(healthController));
 
+  await app.register(authRoutes, { prefix: '/api' });
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(dashboardRoutes, { prefix: '/api' });
   await app.register(systemRoutes, { prefix: '/api' });

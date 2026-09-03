@@ -2,6 +2,7 @@
 
 FROM node:22-alpine AS deps
 WORKDIR /app
+RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
 RUN npm ci
 
@@ -10,6 +11,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json tsconfig.json ./
 COPY src ./src
+COPY migrations ./migrations
 RUN npm run build
 RUN npm prune --omit=dev
 
@@ -22,6 +24,7 @@ RUN addgroup -S vinylab && adduser -S vinylab -G vinylab \
 COPY --from=build --chown=vinylab:vinylab /app/package.json ./package.json
 COPY --from=build --chown=vinylab:vinylab /app/node_modules ./node_modules
 COPY --from=build --chown=vinylab:vinylab /app/dist ./dist
+COPY --from=build --chown=vinylab:vinylab /app/migrations ./migrations
 USER vinylab
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

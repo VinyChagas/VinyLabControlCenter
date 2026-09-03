@@ -1,0 +1,10 @@
+# Bloco sugerido para /opt/vinylab/caddy/Caddyfile
+# NÃO aplicado automaticamente — revisar e recarregar o Caddy manualmente.
+#
+# reverse_proxy aponta apenas ao frontend.
+# O nginx do frontend encaminha /api/* para vinylab-control-backend:3001.
+
+control.vinichagas.cloud {
+	encode gzip
+	reverse_proxy vinylab-control-frontend:80
+}

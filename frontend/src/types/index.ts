@@ -64,6 +64,20 @@ export interface SystemInfoData {
   updatedAt: string;
 }
 
+export type PlatformRole = 'owner' | 'admin' | 'operator' | 'viewer';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  kind: 'permanent' | 'temporary';
+  platformRole: PlatformRole;
+  status: 'pending' | 'active' | 'disabled' | 'expired';
+  expiresAt: string | null;
+  initials: string;
+}
+
+/** @deprecated Prefer AuthUser — mantido para dados legados do dashboard mock */
 export interface CurrentUser {
   name: string;
   role: string;
