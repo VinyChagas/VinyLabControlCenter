@@ -1,6 +1,16 @@
+import type { PoolClient } from 'pg';
 import { query } from '../../../db/pool.js';
 
-export type AuditAction = 'login_success' | 'login_failed' | 'logout';
+export type AuditAction =
+  | 'login_success'
+  | 'login_failed'
+  | 'logout'
+  | 'setup_login_success'
+  | 'setup_login_failed'
+  | 'owner_created'
+  | 'setup_completed';
+
+type Queryable = Pick<PoolClient, 'query'>;
 
 export class AuditRepository {
   async record(input: {
@@ -23,10 +33,35 @@ export class AuditRepository {
       ],
     );
   }
+
+  async recordWithClient(
+    client: Queryable,
+    input: {
+      actorId?: string | null;
+      action: AuditAction;
+      resourceType?: string | null;
+      resourceId?: string | null;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    const metadata = sanitizeAuditMetadata(input.metadata ?? {});
+    await client.query(
+      `INSERT INTO audit_events (actor_id, action, resource_type, resource_id, metadata)
+       VALUES ($1, $2, $3, $4, $5::jsonb)`,
+      [
+        input.actorId ?? null,
+        input.action,
+        input.resourceType ?? null,
+        input.resourceId ?? null,
+        JSON.stringify(metadata),
+      ],
+    );
+  }
 }
 
 const FORBIDDEN_METADATA_KEYS = [
   'password',
+  'password_hash',
   'token',
   'token_hash',
   'tokenHash',
@@ -40,6 +75,7 @@ const FORBIDDEN_METADATA_KEYS = [
   'apiKey',
   'api_key',
   'SECRET_MASTER_KEY',
+  '1234',
 ];
 
 function sanitizeAuditMetadata(metadata: Record<string, unknown>): Record<string, unknown> {

@@ -65,8 +65,9 @@ Variáveis:
 - `FRONTEND_URL` — origem CORS/CSRF (`http://localhost:5173` em DEV)
 - `DATABASE_URL` — PostgreSQL do backend
 - `SECRET_MASTER_KEY` — AES-256-GCM (≥ 32 chars)
-- `SESSION_TTL_HOURS` — validade da sessão (ex.: `72`)
-- `BOOTSTRAP_OWNER_EMAIL` / `BOOTSTRAP_OWNER_PASSWORD` / `BOOTSTRAP_OWNER_NAME` — cria OWNER se ainda não existir
+- `SESSION_TTL_HOURS` — validade da sessão de usuário (ex.: `72`)
+
+O primeiro OWNER é criado pelo fluxo interativo `/setup` (credencial temporária `admin` / `1234` enquanto não houver OWNER). Não há variáveis `BOOTSTRAP_OWNER_*`.
 
 ### Frontend (`frontend/.env` opcional)
 
@@ -84,7 +85,7 @@ cp .env.dev.example .env.dev
 ```bash
 cp .env.example .env
 # FRONTEND_URL=https://control.vinichagas.cloud
-# preencha DATABASE_URL, SECRET_MASTER_KEY, BOOTSTRAP_OWNER_*, etc.
+# preencha DATABASE_URL, SECRET_MASTER_KEY, etc.
 ```
 
 **Nunca** versione `.env`, `.env.dev`, `.env.hml` legado ou `backend/data/secrets.enc.json`.
@@ -108,7 +109,7 @@ Migrations + app:
 
 ```bash
 cd backend
-cp .env.example .env   # ajuste DATABASE_URL e BOOTSTRAP_OWNER_*
+cp .env.example .env   # ajuste DATABASE_URL
 npm install
 npm run migrate
 npm run dev
@@ -121,6 +122,7 @@ npm run dev
 
 - Frontend: http://localhost:5173
 - Login: http://localhost:5173/login
+- Setup inicial: http://localhost:5173/setup
 - Backend health: http://localhost:3001/health
 
 ## Autenticação
@@ -129,8 +131,15 @@ npm run dev
 
 - `GET /health`
 - `POST /api/auth/login`
+- `GET /api/setup/status`
 
-### Protegidos (sessão obrigatória)
+### Setup (sessão `scope=setup`)
+
+- `POST /api/setup/owner`
+- `GET /api/auth/me`
+- `POST /api/auth/logout`
+
+### Protegidos (sessão `scope=user`)
 
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
@@ -139,6 +148,8 @@ npm run dev
 Secrets e updates sensíveis de settings: apenas `owner` ou `admin`.
 
 Cookie: `vl_session` — `HttpOnly`, `SameSite=Lax`, `Secure` quando `FRONTEND_URL` é HTTPS / `APP_ENV=vps|production`.
+
+Sessão de setup: TTL 30 minutos; não acessa APIs administrativas.
 
 ## Homologação na VPS
 
@@ -227,7 +238,7 @@ Em `vps`/`production`, DB ausente/falho → HTTP 503.
 - CSRF básico: validação Origin/Referer em métodos mutáveis (token CSRF pode vir depois)
 - Secrets providers: AES-256-GCM em `backend/data/secrets.enc.json`
 - Logs: redaction de cookie, authorization, password, token, DATABASE_URL, etc.
-- Audit: `login_success`, `login_failed`, `logout` (sem senhas/tokens)
+- Audit: `login_success`, `login_failed`, `logout`, `setup_login_success`, `setup_login_failed`, `owner_created`, `setup_completed` (sem senhas/tokens)
 
 ## Testes frontend
 

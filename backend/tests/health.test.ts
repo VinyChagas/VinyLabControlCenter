@@ -39,6 +39,14 @@ describe('GET /api/health', () => {
   });
 });
 
+describe('GET /api/setup/status', () => {
+  it('is public and returns setupRequired when database is not configured', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/setup/status' });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ setupRequired: true });
+  });
+});
+
 describe('protected routes without session', () => {
   it('rejects dashboard without session', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/dashboard' });

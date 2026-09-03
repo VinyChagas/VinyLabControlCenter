@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
+/** Accepts a real email or the temporary setup username "admin". */
 export const loginSchema = z.object({
-  email: z.string().email().max(320),
+  email: z.string().trim().min(1).max(320),
   password: z.string().min(1).max(200),
 });
 

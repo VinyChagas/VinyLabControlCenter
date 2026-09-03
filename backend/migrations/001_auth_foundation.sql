@@ -1,5 +1,6 @@
--- Auth foundation: users, sessions, audit_events
+-- Auth foundation: users, sessions (user + setup), audit_events
 -- Prepares for future projects / project_memberships (not created here)
+-- Does NOT create any users — first OWNER is created via interactive /setup
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -24,18 +25,24 @@ CREATE INDEX users_expires_at_idx ON users (expires_at) WHERE expires_at IS NOT 
 
 CREATE TABLE sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  user_id UUID NULL REFERENCES users (id) ON DELETE CASCADE,
+  scope VARCHAR(16) NOT NULL DEFAULT 'user' CHECK (scope IN ('setup', 'user')),
   token_hash TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL,
   revoked_at TIMESTAMPTZ NULL,
   ip INET NULL,
   user_agent TEXT NULL,
-  CONSTRAINT sessions_token_hash_unique UNIQUE (token_hash)
+  CONSTRAINT sessions_token_hash_unique UNIQUE (token_hash),
+  CONSTRAINT sessions_scope_user_consistency CHECK (
+    (scope = 'user' AND user_id IS NOT NULL)
+    OR (scope = 'setup' AND user_id IS NULL)
+  )
 );
 
 CREATE INDEX sessions_user_id_idx ON sessions (user_id);
 CREATE INDEX sessions_expires_at_idx ON sessions (expires_at);
+CREATE INDEX sessions_scope_idx ON sessions (scope) WHERE revoked_at IS NULL;
 
 CREATE TABLE audit_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

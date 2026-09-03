@@ -83,7 +83,7 @@ fi
 
 required_vars=(
   NODE_ENV PORT DATABASE_URL FRONTEND_URL SECRET_MASTER_KEY APP_ENV
-  SESSION_TTL_HOURS BOOTSTRAP_OWNER_EMAIL BOOTSTRAP_OWNER_PASSWORD BOOTSTRAP_OWNER_NAME
+  SESSION_TTL_HOURS
 )
 missing=()
 # shellcheck disable=SC1090
@@ -107,11 +107,6 @@ fi
 
 if [[ "${DATABASE_URL}" == *"USER:PASSWORD"* ]] || [[ "${DATABASE_URL}" == *"CHANGE_ME"* ]]; then
   err "DATABASE_URL ainda contém placeholder. Preencha com a connection string real da VPS."
-  exit 1
-fi
-
-if [[ "${BOOTSTRAP_OWNER_PASSWORD}" == *"CHANGE_ME"* ]] || ((${#BOOTSTRAP_OWNER_PASSWORD} < 12)); then
-  err "BOOTSTRAP_OWNER_PASSWORD inválida (mínimo 12 caracteres, sem placeholder)."
   exit 1
 fi
 

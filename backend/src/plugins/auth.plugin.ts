@@ -13,10 +13,28 @@ declare module 'fastify' {
   }
 }
 
+function pathOnly(url: string): string {
+  return url.split('?')[0] ?? url;
+}
+
 function isPublicRoute(method: string, url: string): boolean {
-  const path = url.split('?')[0] ?? url;
-  if (method.toUpperCase() === 'GET' && path === '/health') return true;
-  if (method.toUpperCase() === 'POST' && path === '/api/auth/login') return true;
+  const path = pathOnly(url);
+  const verb = method.toUpperCase();
+  if (verb === 'GET' && path === '/health') return true;
+  if (verb === 'POST' && path === '/api/auth/login') return true;
+  if (verb === 'GET' && path === '/api/setup/status') return true;
+  // Allow reaching the handler so SETUP_ALREADY_COMPLETED can be returned without a session.
+  if (verb === 'POST' && path === '/api/setup/owner') return true;
+  return false;
+}
+
+function isSetupAllowedRoute(method: string, url: string): boolean {
+  const path = pathOnly(url);
+  const verb = method.toUpperCase();
+  if (verb === 'GET' && path === '/api/setup/status') return true;
+  if (verb === 'POST' && path === '/api/setup/owner') return true;
+  if (verb === 'POST' && path === '/api/auth/logout') return true;
+  if (verb === 'GET' && path === '/api/auth/me') return true;
   return false;
 }
 
@@ -47,6 +65,10 @@ const authPluginImpl: FastifyPluginAsync = async (app) => {
     if (!request.auth) {
       throw new AppError(ErrorCodes.UNAUTHORIZED, 'Não autenticado', 401);
     }
+
+    if (request.auth.scope === 'setup' && !isSetupAllowedRoute(request.method, request.url)) {
+      throw new AppError(ErrorCodes.FORBIDDEN, 'Sessão de configuração sem permissão para este recurso', 403);
+    }
   });
 };
 
@@ -57,7 +79,7 @@ export const authPlugin = fp(authPluginImpl, {
 
 export function requireRoles(...roles: PlatformRole[]) {
   return async (request: { auth: AuthContext | null }) => {
-    if (!request.auth) {
+    if (!request.auth || request.auth.scope !== 'user' || !request.auth.user) {
       throw new AppError(ErrorCodes.UNAUTHORIZED, 'Não autenticado', 401);
     }
     if (!roles.includes(request.auth.user.platformRole)) {

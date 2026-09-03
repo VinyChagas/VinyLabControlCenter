@@ -14,18 +14,6 @@ const envSchema = z.object({
   ),
   SECRET_MASTER_KEY: z.string().min(32, 'SECRET_MASTER_KEY must be at least 32 characters'),
   SESSION_TTL_HOURS: z.coerce.number().int().positive().default(72),
-  BOOTSTRAP_OWNER_EMAIL: z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
-    z.string().email().optional(),
-  ),
-  BOOTSTRAP_OWNER_PASSWORD: z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
-    z.string().min(12).optional(),
-  ),
-  BOOTSTRAP_OWNER_NAME: z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
-    z.string().min(1).max(200).optional(),
-  ),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

@@ -1,6 +1,7 @@
 export type UserKind = 'permanent' | 'temporary';
 export type PlatformRole = 'owner' | 'admin' | 'operator' | 'viewer';
 export type UserStatus = 'pending' | 'active' | 'disabled' | 'expired';
+export type SessionScope = 'setup' | 'user';
 
 export interface UserRecord {
   id: string;
@@ -29,7 +30,8 @@ export interface PublicUser {
 
 export interface SessionRecord {
   id: string;
-  userId: string;
+  userId: string | null;
+  scope: SessionScope;
   tokenHash: string;
   createdAt: Date;
   expiresAt: Date;

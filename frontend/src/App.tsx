@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/auth/AuthProvider';
-import { GuestRoute, ProtectedRoute } from '@/auth/ProtectedRoute';
+import { GuestRoute, ProtectedRoute, SetupRoute } from '@/auth/ProtectedRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ROUTES } from '@/constants/navigation';
 import { BackupsPage } from '@/pages/Backups';
@@ -11,6 +11,7 @@ import { LogsPage } from '@/pages/Logs';
 import { ProjectsPage } from '@/pages/Projects';
 import { ServicesPage } from '@/pages/Services';
 import { SettingsPage } from '@/pages/Settings';
+import { SetupPage } from '@/pages/Setup';
 
 export default function App() {
   return (
@@ -19,6 +20,10 @@ export default function App() {
         <Routes>
           <Route element={<GuestRoute />}>
             <Route path={ROUTES.login} element={<LoginPage />} />
+          </Route>
+
+          <Route element={<SetupRoute />}>
+            <Route path={ROUTES.setup} element={<SetupPage />} />
           </Route>
 
           <Route element={<ProtectedRoute />}>

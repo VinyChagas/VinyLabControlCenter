@@ -7,7 +7,7 @@ import { ROUTES } from '@/constants/navigation';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login, setupRequired } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,8 +20,8 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
-      navigate(ROUTES.dashboard, { replace: true });
+      const scope = await login(email.trim(), password);
+      navigate(scope === 'setup' ? ROUTES.setup : ROUTES.dashboard, { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -48,7 +48,11 @@ export function LoginPage() {
           <LogoMark />
           <p className="mt-4 text-[12px] font-semibold tracking-[0.18em] text-muted">VINYLAB</p>
           <h1 className="mt-2 text-[28px] font-semibold tracking-tight text-text">Control Center</h1>
-          <p className="mt-2 text-[13px] text-muted">Acesse com sua conta autorizada.</p>
+          <p className="mt-2 text-[13px] text-muted">
+            {setupRequired
+              ? 'Configure o administrador inicial para continuar.'
+              : 'Acesse com sua conta autorizada.'}
+          </p>
         </div>
 
         <form
@@ -56,15 +60,17 @@ export function LoginPage() {
           className="rounded-2xl border border-line bg-card/90 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm"
         >
           <label className="block">
-            <span className="text-[12px] font-medium text-muted">Email</span>
+            <span className="text-[12px] font-medium text-muted">
+              {setupRequired ? 'Usuário ou e-mail' : 'Email'}
+            </span>
             <input
-              type="email"
+              type="text"
               autoComplete="username"
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               className="mt-1.5 w-full rounded-lg border border-line bg-canvas px-3 py-2.5 text-[14px] text-text outline-none transition focus:border-blue-accent/60"
-              placeholder="voce@exemplo.com"
+              placeholder={setupRequired ? 'admin' : 'voce@exemplo.com'}
             />
           </label>
 

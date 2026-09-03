@@ -19,6 +19,7 @@ import { costsRoutes } from './modules/costs/costs.routes.js';
 import { settingsRoutes } from './modules/settings/settings.routes.js';
 import { secretsRoutes } from './security/secrets.routes.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
+import { setupRoutes } from './modules/setup/setup.routes.js';
 import { HealthController } from './modules/health/health.controller.js';
 import { authPlugin } from './plugins/auth.plugin.js';
 import { csrfPlugin } from './plugins/csrf.plugin.js';
@@ -89,6 +90,21 @@ export async function buildApp() {
       return reply.status(400).send(body);
     }
 
+    const statusCode =
+      typeof error === 'object' &&
+      error !== null &&
+      'statusCode' in error &&
+      typeof (error as { statusCode: unknown }).statusCode === 'number'
+        ? (error as { statusCode: number }).statusCode
+        : undefined;
+
+    if (statusCode === 429) {
+      const body: ApiErrorResponse = {
+        error: { code: 'RATE_LIMITED', message: 'Muitas tentativas. Tente novamente em instantes.' },
+      };
+      return reply.status(429).send(body);
+    }
+
     const message = error instanceof Error ? error.message : 'Unknown error';
     const safeMessage = sanitizeLogMessage(message);
     logger.error({ err: { message: safeMessage } }, 'unhandled error');
@@ -107,6 +123,7 @@ export async function buildApp() {
   app.get('/health', healthController.check.bind(healthController));
 
   await app.register(authRoutes, { prefix: '/api' });
+  await app.register(setupRoutes, { prefix: '/api' });
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(dashboardRoutes, { prefix: '/api' });
   await app.register(systemRoutes, { prefix: '/api' });

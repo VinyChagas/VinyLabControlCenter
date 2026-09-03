@@ -33,12 +33,16 @@ export class AuthController {
       signed: false,
     });
 
-    return reply.send({ user: result.user });
+    return reply.send({
+      authenticated: true,
+      scope: result.scope,
+      user: result.user,
+    });
   }
 
   async logout(request: FastifyRequest, reply: FastifyReply) {
     if (request.auth) {
-      await this.service.logout(request.auth.sessionId, request.auth.user.id);
+      await this.service.logout(request.auth.sessionId, request.auth.user?.id ?? null);
     }
 
     reply.clearCookie(SESSION_COOKIE_NAME, {
@@ -55,6 +59,6 @@ export class AuthController {
     if (!request.auth) {
       throw new AppError(ErrorCodes.UNAUTHORIZED, 'Não autenticado', 401);
     }
-    return reply.send({ user: this.service.me(request.auth.user) });
+    return reply.send(this.service.toSessionResponse(request.auth));
   }
 }

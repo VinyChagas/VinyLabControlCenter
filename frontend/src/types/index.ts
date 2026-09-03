@@ -66,6 +66,10 @@ export interface SystemInfoData {
 
 export type PlatformRole = 'owner' | 'admin' | 'operator' | 'viewer';
 
+export type SessionScope = 'setup' | 'user';
+
+export type AuthState = 'anonymous' | 'setup' | 'authenticated';
+
 export interface AuthUser {
   id: string;
   email: string;
