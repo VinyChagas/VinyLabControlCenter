@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+dist-ssr/
+build/
+coverage/
+*.tsbuildinfo
+
+# Vite cache (root or local)
+.vite/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+!**/.env.example
+
+# Encrypted secrets store and local data
+**/data/secrets.enc.json
+**/data/*.enc.json
+backend/data/
+
+# Database dumps / backups
+*.dump
+*.sql.gz
+*.backup
+backups/
+dumps/
+
+# Credentials / keys
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.local
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/

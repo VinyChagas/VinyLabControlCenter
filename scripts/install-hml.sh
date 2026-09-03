@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+COMPOSE_FILE="${ROOT_DIR}/docker-compose.hml.yml"
+ENV_FILE="${ROOT_DIR}/.env.hml"
+
+log() { printf '==> %s\n' "$*"; }
+err() { printf 'ERROR: %s\n' "$*" >&2; }
+
+require_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    err "Comando obrigatório não encontrado: $1"
+    exit 1
+  fi
+}
+
+on_error() {
+  err "Falha no install HML (linha ${1})."
+  exit 1
+}
+trap 'on_error $LINENO' ERR
+
+cd "${ROOT_DIR}"
+
+log "Validando pré-requisitos..."
+require_cmd docker
+
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE=(docker-compose)
+else
+  err "Docker Compose não encontrado (plugin 'docker compose' ou binário docker-compose)."
+  exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  err "Docker daemon inacessível. Verifique se o serviço está rodando e se você tem permissão."
+  exit 1
+fi
+
+if ! docker network inspect vinylab_internal >/dev/null 2>&1; then
+  err "Network Docker 'vinylab_internal' não existe. Crie/conecte a network existente antes do deploy."
+  exit 1
+fi
+
+if ! docker inspect vinylab-postgres >/dev/null 2>&1; then
+  err "Container 'vinylab-postgres' não encontrado. O PostgreSQL da VPS precisa existir previamente."
+  exit 1
+fi
+
+if [[ ! -f "${ENV_FILE}" ]]; then
+  err "Arquivo ${ENV_FILE} não encontrado."
+  err "Copie .env.hml.example para .env.hml e preencha os secrets manualmente."
+  err "Este script NÃO cria nem sobrescreve secrets."
+  exit 1
+fi
+
+required_vars=(NODE_ENV PORT DATABASE_URL FRONTEND_URL SECRET_MASTER_KEY APP_ENV)
+missing=()
+# shellcheck disable=SC1090
+set -a
+source "${ENV_FILE}"
+set +a
+for var in "${required_vars[@]}"; do
+  if [[ -z "${!var:-}" ]]; then
+    missing+=("${var}")
+  fi
+done
+if ((${#missing[@]} > 0)); then
+  err "Variáveis ausentes em .env.hml: ${missing[*]}"
+  exit 1
+fi
+
+if [[ "${SECRET_MASTER_KEY}" == *"CHANGE_ME"* ]] || ((${#SECRET_MASTER_KEY} < 32)); then
+  err "SECRET_MASTER_KEY inválida. Use uma chave aleatória com pelo menos 32 caracteres."
+  exit 1
+fi
+
+if [[ "${DATABASE_URL}" == *"USER:PASSWORD"* ]] || [[ "${DATABASE_URL}" == *"CHANGE_ME"* ]]; then
+  err "DATABASE_URL ainda contém placeholder. Preencha com a connection string real da VPS."
+  exit 1
+fi
+
+log "Build das imagens HML..."
+"${COMPOSE[@]}" -f "${COMPOSE_FILE}" build
+
+log "Subindo containers (sem tocar em volumes externos do PostgreSQL)..."
+"${COMPOSE[@]}" -f "${COMPOSE_FILE}" up -d
+
+log "Aguardando healthcheck do backend..."
+ready=0
+for _ in $(seq 1 30); do
+  if "${COMPOSE[@]}" -f "${COMPOSE_FILE}" exec -T backend \
+    node -e "fetch('http://127.0.0.1:3001/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
+    >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  sleep 2
+done
+
+log "Status dos containers:"
+"${COMPOSE[@]}" -f "${COMPOSE_FILE}" ps
+
+if [[ "${ready}" -ne 1 ]]; then
+  err "Healthcheck do backend falhou."
+  "${COMPOSE[@]}" -f "${COMPOSE_FILE}" logs --tail=80 backend || true
+  exit 1
+fi
+
+log "Resposta do healthcheck:"
+"${COMPOSE[@]}" -f "${COMPOSE_FILE}" exec -T backend \
+  node -e "fetch('http://127.0.0.1:3001/health').then(async (r)=>{console.log(await r.text()); process.exit(r.ok?0:1)}).catch((e)=>{console.error(e); process.exit(1)})"
+
+log "Install HML concluído com sucesso."
+log "Frontend (localhost): http://127.0.0.1:8080"
+log "Backend  (localhost): http://127.0.0.1:3001/health"
+log "Próximo passo: configurar Caddy para HTTPS apontando para estes serviços."

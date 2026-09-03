@@ -1,0 +1,107 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  --color-canvas: #020407;
+  --color-sidebar: #03060b;
+  --color-card: #05090f;
+  --color-card-elevated: #080d14;
+  --color-line: #121a28;
+  --color-text: #e8edf5;
+  --color-muted: #8b93a7;
+  --color-blue-accent: #168bff;
+  --color-blue-mid: #087bff;
+  --color-blue-deep: #0a6eff;
+  --color-orange-accent: #ff7900;
+  --color-orange-mid: #ff8a00;
+  --color-orange-light: #ff9a1f;
+
+  --animate-fade-in: fade-in 0.5s ease-out both;
+  --animate-slide-up: slide-up 0.5s ease-out both;
+  --animate-slide-up-sm: slide-up-sm 0.35s ease-out both;
+  --animate-scale-in: scale-in 0.4s ease-out both;
+  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-up-sm {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes progress-fill {
+  from { width: 0%; }
+}
+
+@keyframes sparkline-draw {
+  from { stroke-dashoffset: var(--sparkline-length, 300); }
+  to { stroke-dashoffset: 0; }
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #020407;
+  color: #e8edf5;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgb(22 139 255 / 0.28);
+}
+
+/* Stagger utility classes */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.4s; }
+
+/* Animated progress bar fill */
+.progress-animated > div {
+  animation: progress-fill 0.8s ease-out both;
+}
+
+/* Sparkline draw animation */
+.sparkline-animated path {
+  stroke-dasharray: var(--sparkline-length, 300);
+  stroke-dashoffset: var(--sparkline-length, 300);
+  animation: sparkline-draw 1.2s ease-out 0.3s both;
+}

@@ -1,0 +1,24 @@
+import type { ServiceItem } from './services.types.js';
+import { AppError, ErrorCodes } from '../../utils/errors.js';
+
+const SERVICES_MOCK: ServiceItem[] = [
+  { id: 'hermes', name: 'Hermes', description: 'Agente de IA', port: 3000, status: 'online', uptime: '12d 4h', cpu: 2, memoryLabel: '128 MB', memoryPercent: 13 },
+  { id: 'n8n', name: 'n8n', description: 'Automação de fluxos', port: 5678, status: 'online', uptime: '12d 3h', cpu: 5, memoryLabel: '256 MB', memoryPercent: 25 },
+  { id: 'postgres', name: 'PostgreSQL', description: 'Banco de dados', port: 5432, status: 'online', uptime: '12d 2h', cpu: 4, memoryLabel: '512 MB', memoryPercent: 50 },
+  { id: 'grafana', name: 'Grafana', description: 'Monitoramento', port: 3001, status: 'online', uptime: '12d 2h', cpu: 1, memoryLabel: '96 MB', memoryPercent: 9 },
+  { id: 'caddy', name: 'Caddy', description: 'Proxy/Reverse', port: 443, status: 'online', uptime: '12d 4h', cpu: 1, memoryLabel: '64 MB', memoryPercent: 6 },
+];
+
+export class ServicesService {
+  getAll(): ServiceItem[] {
+    return SERVICES_MOCK;
+  }
+
+  getById(id: string): ServiceItem {
+    const service = SERVICES_MOCK.find((s) => s.id === id);
+    if (!service) {
+      throw new AppError(ErrorCodes.NOT_FOUND, `Service '${id}' not found`, 404);
+    }
+    return service;
+  }
+}
