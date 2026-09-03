@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -23,6 +23,13 @@ import { setupRoutes } from './modules/setup/setup.routes.js';
 import { HealthController } from './modules/health/health.controller.js';
 import { authPlugin } from './plugins/auth.plugin.js';
 import { csrfPlugin } from './plugins/csrf.plugin.js';
+import { metricsRoutes } from './modules/metrics/metrics.routes.js';
+import { PrometheusClient } from './modules/metrics/prometheus.client.js';
+import { MetricsService } from './modules/metrics/metrics.service.js';
+import { ContainerMetricsService } from './modules/metrics/container-metrics.service.js';
+import { SystemMetricsRepository } from './modules/metrics/system-metrics.repository.js';
+import { MetricsCollector } from './modules/metrics/metrics.collector.js';
+import { ProjectMetricsCollector } from './modules/projects/project-metrics.collector.js';
 
 const BODY_LIMIT_BYTES = 100 * 1024;
 
@@ -33,13 +40,36 @@ function sanitizeLogMessage(message: string): string {
     .replace(/password=\S+/gi, 'password=***');
 }
 
-export async function buildApp() {
+export interface AppServices {
+  metricsCollector: MetricsCollector;
+  metricsService: MetricsService;
+  containers: ContainerMetricsService;
+  prometheus: PrometheusClient;
+}
+
+export type AppInstance = FastifyInstance & { services: AppServices };
+
+export async function buildApp(): Promise<AppInstance> {
   const app = Fastify({
     logger: false,
     bodyLimit: BODY_LIMIT_BYTES,
     requestIdHeader: 'x-request-id',
     genReqId: () => crypto.randomUUID(),
-  });
+  }) as unknown as AppInstance;
+
+  const prometheus = new PrometheusClient();
+  const metricsService = new MetricsService(prometheus);
+  const containers = new ContainerMetricsService(prometheus);
+  const systemRepo = new SystemMetricsRepository();
+  const projectCollector = new ProjectMetricsCollector(containers);
+  const metricsCollector = new MetricsCollector(metricsService, systemRepo, projectCollector);
+
+  app.services = {
+    metricsCollector,
+    metricsService,
+    containers,
+    prometheus,
+  };
 
   app.addHook('onRequest', async (request) => {
     logger.info({ reqId: request.id, method: request.method, url: request.url }, 'incoming request');
@@ -118,7 +148,6 @@ export async function buildApp() {
     return reply.status(500).send(body);
   });
 
-  // Health sem prefixo — útil para Docker/Caddy healthchecks (público)
   const healthController = new HealthController();
   app.get('/health', healthController.check.bind(healthController));
 
@@ -126,9 +155,22 @@ export async function buildApp() {
   await app.register(setupRoutes, { prefix: '/api' });
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(dashboardRoutes, { prefix: '/api' });
-  await app.register(systemRoutes, { prefix: '/api' });
-  await app.register(servicesRoutes, { prefix: '/api' });
-  await app.register(projectsRoutes, { prefix: '/api' });
+  await app.register(async (instance) => systemRoutes(instance, { metricsService }), {
+    prefix: '/api',
+  });
+  await app.register(
+    async (instance) => metricsRoutes(instance, { metricsService, historyRepo: systemRepo }),
+    { prefix: '/api' },
+  );
+  await app.register(
+    async (instance) => servicesRoutes(instance, { containers, metricsService }),
+    {
+      prefix: '/api',
+    },
+  );
+  await app.register(async (instance) => projectsRoutes(instance, { containers }), {
+    prefix: '/api',
+  });
   await app.register(integrationsRoutes, { prefix: '/api' });
   await app.register(costsRoutes, { prefix: '/api' });
   await app.register(settingsRoutes, { prefix: '/api' });

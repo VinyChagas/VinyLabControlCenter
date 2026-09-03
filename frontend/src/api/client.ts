@@ -25,15 +25,29 @@ export function onUnauthorized(handler: UnauthorizedHandler | null) {
   unauthorizedHandler = handler;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+function mergeSignals(a: AbortSignal, b?: AbortSignal): AbortSignal {
+  if (!b) return a;
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const onAbort = () => controller.abort();
+  if (a.aborted || b.aborted) {
+    controller.abort();
+    return controller.signal;
+  }
+  a.addEventListener('abort', onAbort, { once: true });
+  b.addEventListener('abort', onAbort, { once: true });
+  return controller.signal;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const timeoutController = new AbortController();
+  const timeoutId = window.setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
+  const signal = mergeSignals(timeoutController.signal, init?.signal ?? undefined);
 
   try {
     const response = await fetch(`${getBaseUrl()}${path}`, {
       ...init,
       credentials: 'include',
-      signal: controller.signal,
+      signal,
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
@@ -90,16 +104,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const apiClient = {
-  get: <T>(path: string) => request<T>(path, { method: 'GET' }),
-  post: <T>(path: string, body?: unknown) =>
+  get: <T>(path: string, init?: RequestInit) => request<T>(path, { ...init, method: 'GET' }),
+  post: <T>(path: string, body?: unknown, init?: RequestInit) =>
     request<T>(path, {
+      ...init,
       method: 'POST',
       body: body !== undefined ? JSON.stringify(body) : undefined,
     }),
-  put: <T>(path: string, body?: unknown) =>
+  put: <T>(path: string, body?: unknown, init?: RequestInit) =>
     request<T>(path, {
+      ...init,
       method: 'PUT',
       body: body !== undefined ? JSON.stringify(body) : undefined,
     }),
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  delete: <T>(path: string, init?: RequestInit) =>
+    request<T>(path, { ...init, method: 'DELETE' }),
 };

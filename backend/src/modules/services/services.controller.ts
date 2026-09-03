@@ -5,10 +5,10 @@ export class ServicesController {
   constructor(private readonly service: ServicesService) {}
 
   async getAll(_request: FastifyRequest, reply: FastifyReply) {
-    return reply.send(this.service.getAll());
+    return reply.send(await this.service.getAll());
   }
 
   async getById(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
-    return reply.send(this.service.getById(request.params.id));
+    return reply.send(await this.service.getById(request.params.id));
   }
 }

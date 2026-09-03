@@ -7,10 +7,7 @@ import type { FastifyInstance } from 'fastify';
  * this override may not apply — vitest file isolation usually loads fresh.
  */
 
-const TEST_DATABASE_URL =
-  process.env.DATABASE_URL_TEST ||
-  process.env.DATABASE_URL ||
-  'postgresql://vinylab_control:devpass@127.0.0.1:5432/vinylab_control_center';
+const TEST_DATABASE_URL = process.env.DATABASE_URL_TEST;
 
 describe.skipIf(!TEST_DATABASE_URL)('login rate limit (isolated)', () => {
   let app: FastifyInstance;

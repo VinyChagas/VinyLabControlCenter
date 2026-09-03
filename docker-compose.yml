@@ -19,6 +19,8 @@ services:
       - vinylab_control_secrets:/app/data
     networks:
       - vinylab_internal
+      # Necessário para o backend resolver PROMETHEUS_URL=http://prometheus:9090
+      - monitoring
     # Apenas localhost — Caddy fará o HTTPS na frente do frontend
     ports:
       - "127.0.0.1:3001:3001"
@@ -63,6 +65,8 @@ networks:
   vinylab_internal:
     external: true
   vinylab_proxy:
+    external: true
+  monitoring:
     external: true
 
 volumes:

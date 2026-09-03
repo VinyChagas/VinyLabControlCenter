@@ -13,7 +13,7 @@ export function SystemInfo({ system }: SystemInfoProps) {
     { label: 'Kernel', value: system.kernel },
     {
       label: 'Carga Média',
-      value: system.loadAverage.map((n) => n.toFixed(2)).join('  '),
+      value: system.loadAverage.map((n) => (n === null ? '--' : n.toFixed(2))).join('  '),
     },
     { label: 'Atualizado em', value: system.updatedAt },
   ];

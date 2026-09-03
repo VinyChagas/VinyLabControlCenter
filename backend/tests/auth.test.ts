@@ -5,11 +5,7 @@ import { hashPassword, verifyPassword } from '../src/security/password.service.j
 import { generateSessionToken, hashSessionToken } from '../src/security/session-token.js';
 import { AUTH_LOGIN_RATE_MAX_DEFAULT } from '../src/modules/auth/auth.routes.js';
 
-const TEST_DATABASE_URL =
-  process.env.DATABASE_URL_TEST ||
-  process.env.DATABASE_URL ||
-  'postgresql://vinylab_control:devpass@127.0.0.1:5432/vinylab_control_center';
-
+const TEST_DATABASE_URL = process.env.DATABASE_URL_TEST;
 const hasDb = Boolean(TEST_DATABASE_URL);
 
 const OWNER_EMAIL = 'owner@vinylab.test';

@@ -66,6 +66,12 @@ Variáveis:
 - `DATABASE_URL` — PostgreSQL do backend
 - `SECRET_MASTER_KEY` — AES-256-GCM (≥ 32 chars)
 - `SESSION_TTL_HOURS` — validade da sessão de usuário (ex.: `72`)
+- `PROMETHEUS_URL` — URL interna do Prometheus (VPS: `http://prometheus:9090`)
+- `PROMETHEUS_TIMEOUT_MS` — timeout das queries (default `5000`)
+- `METRICS_COLLECTION_INTERVAL_SECONDS` — persistência no Postgres (default `60`)
+- `SYSTEM_HOSTNAME` / `SYSTEM_PRIMARY_IP` — opcionais para Informações do Sistema
+
+Detalhes da camada de métricas: [`docs/metrics.md`](docs/metrics.md).
 
 O primeiro OWNER é criado pelo fluxo interativo `/setup` (credencial temporária `admin` / `1234` enquanto não houver OWNER). Não há variáveis `BOOTSTRAP_OWNER_*`.
 

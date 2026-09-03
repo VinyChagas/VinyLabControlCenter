@@ -70,7 +70,7 @@ export interface SystemInfoData {
   primaryIp: string;
   os: string;
   kernel: string;
-  loadAverage: [number, number, number];
+  loadAverage: [number | null, number | null, number | null];
   updatedAt: string;
 }
 
